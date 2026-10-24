@@ -106,10 +106,14 @@
       statusDiv.innerText = text;
     }
 
-    // Fiskal chek ma'lumotlarini aniq ajratib olish
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
+
+      const isFiscal = text.includes("soliq.uz") || text.includes("s=") || text.includes("ofd");
+      if (!isFiscal) return null;
+
       let amount = null;
+      let checkDateStr = null;
       let isExpired = false;
 
       try {
@@ -117,37 +121,20 @@
         const parsedUrl = new URL(cleanUrl);
         const params = parsedUrl.searchParams;
 
-        // 1. Summani olish (faqat 's' parametri)
+        // 1. Xarid summasini ajratish (s parametri)
         const sParam = params.get("s");
         if (sParam) {
           amount = parseFloat(sParam);
-          // Agar kassa summani tiyinda chiqargan bo'lsa (100 ga bo'lamiz)
-          if (amount >= 1000000) amount = amount / 100;
+          // O'zbekiston kassa apparatlarida summa tiyinda (masalan 8000000 tiyin = 80 000 so'm)
+          if (amount >= 1000000) {
+            amount = amount / 100;
+          }
         }
 
-        // 2. Xarid vaqtini tekshirish (faqat 'time' yoki 't' parametri orqali)
-        // Kassa apparati ro'yxatdan o'tgan 2024-yilgi sana bilan aralashmaydi
+        // 2. Xarid vaqtini ajratish (time yoki t parametri)
         const timeParam = params.get("time") || params.get("t");
-        if (timeParam) {
-          const now = new Date();
-          const yyyy = String(now.getFullYear());
-          const yy = yyyy.substring(2);
-          const mm = String(now.getMonth() + 1).padStart(2, '0');
-          const dd = String(now.getDate()).padStart(2, '0');
-
-          const fullToday = `${yyyy}${mm}${dd}`;       // 20261024
-          const shortToday = `${yy}${mm}${dd}`;         // 261024
-          const dashToday = `${yyyy}-${mm}-${dd}`;      // 2026-10-24
-          const revDashToday = `${dd}-${mm}-${yyyy}`;   // 24-10-2026
-
-          const isToday = timeParam.includes(fullToday) || 
-                          timeParam.includes(shortToday) || 
-                          timeParam.includes(dashToday) || 
-                          timeParam.includes(revDashToday);
-
-          if (!isToday && timeParam.length >= 6) {
-            isExpired = true;
-          }
+        if (timeParam && timeParam.length >= 8) {
+          checkDateStr = timeParam.substring(0, 8); // Dastlabki 8 raqam: YYYYMMDD
         }
       } catch (err) {
         const matchAmount = text.match(/[?&]s=([0-9]+)/);
@@ -155,9 +142,31 @@
           amount = parseFloat(matchAmount[1]);
           if (amount >= 1000000) amount = amount / 100;
         }
+
+        const matchTime = text.match(/[?&](?:time|t)=([0-9]{8})/);
+        if (matchTime && matchTime[1]) {
+          checkDateStr = matchTime[1];
+        }
       }
 
-      return { amount: amount, isExpired: isExpired };
+      // 3. Xarid sanasini bugungi kun bilan solishtirish
+      if (checkDateStr) {
+        const now = new Date();
+        const yyyy = String(now.getFullYear());
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}${mm}${dd}`;
+
+        if (checkDateStr !== todayStr) {
+          isExpired = true;
+        }
+      }
+
+      return {
+        amount: amount,
+        isExpired: isExpired,
+        hasDate: checkDateStr !== null
+      };
     }
 
     function tick() {
@@ -176,16 +185,22 @@
         if (code && code.data) {
           const checkData = parseFiscalCheck(code.data);
 
+          // 1-shart: Fiskal kassa cheki emasligi
           if (!checkData || checkData.amount === null || isNaN(checkData.amount)) {
-            showStatus("❌ Bu haqiqiy kassa cheki emas!", "error");
-          } else if (checkData.isExpired) {
-            showStatus("❌ Chekning amal qilish muddati o‘tgan!\nFaqat bugungi cheklar qabul qilinadi.", "error");
-          } else if (checkData.amount < 60000) {
+            showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy fiskal kassa chekini skanerlang.", "error");
+          } 
+          // 2-shart: Muddati o'tgan bo'lsa (bugungi kunga tegishli bo'lmasa)
+          else if (checkData.hasDate && checkData.isExpired) {
+            showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.", "error");
+          } 
+          // 3-shart: Summa kamligi
+          else if (checkData.amount < 60000) {
             showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so‘m", "error");
-          } else {
-            // Chek barcha shartlarga to'liq javob bersa
+          } 
+          // 4-shart: Hammasi to'g'ri bo'lsa - qabul qilish
+          else {
             isScanning = false;
-            showStatus("✅ Chek qabul qilindi!\nSumma: " + checkData.amount.toLocaleString() + " so‘m", "success");
+            showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so‘m", "success");
             
             if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
@@ -224,7 +239,7 @@
       video.play();
       requestAnimationFrame(tick);
     }).catch(function(err) {
-      showStatus("❌ Kamerani yoqib bo‘lmadi.\nIltimos, brauzer sozlamalaridan kameraga ruxsat bering.", "error");
+      showStatus("❌ Kamerani yoqib bo‘lmadi.\nSozlamalardan kameraga ruxsat bering.", "error");
     });
   </script>
 </body>
