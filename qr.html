@@ -86,37 +86,52 @@
       statusDiv.innerText = text;
     }
 
-    // Fiskal chekni, summasini va sanasini tahlil qilish
+    // Fiskal chekni, summasini va sanasini xatosiz tahlil qilish
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
 
-      const hasSoliqParam = text.includes("s=") || text.includes("ofd.soliq.uz") || text.includes("soliq.uz");
+      const hasSoliqParam = text.includes("ofd.soliq.uz")  text.includes("soliq.uz")  text.includes("s=");
       if (!hasSoliqParam) return null;
 
-      // 1. Summani ajratish
       let amount = null;
-      const matchAmount = text.match(/[?&]s=([0-9.]+)/i);
-      if (matchAmount && matchAmount[1]) {
-        amount = parseFloat(matchAmount[1]);
-        if (amount > 1000000) amount = amount / 100;
-      }
-
-      // 2. Sana/Vaqtni tekshirish (time=YYYYMMDDHHmmss formati)
       let isExpired = false;
-      const matchTime = text.match(/[?&]time=([0-9]{8})/i);
-      if (matchTime && matchTime[1]) {
-        const checkDateStr = matchTime[1]; // Masalan: "20261020"
-        
-        // Bugungi sana (YYYYMMDD)
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const todayStr = `${year}${month}${day}`;
 
-        // Agar chek sanasi bugungi kunga teng bo'lmasa, eskirgan deb hisoblanadi
-        if (checkDateStr !== todayStr) {
-          isExpired = true;
+      try {
+        const cleanUrl = text.startsWith("http") ? text : "https://" + text;
+        const parsedUrl = new URL(cleanUrl);
+        const params = parsedUrl.searchParams;
+
+        // 1. Summani qat'iy 's' parametridan ajratib olamiz
+        const sParam = params.get("s");
+        if (sParam) {
+          amount = parseFloat(sParam);
+          // Agar kassa summani tiyinlarda chiqargan bo'lsa (masalan 2000000 tiyin = 20 000 so'm)
+          if (amount >= 1000000) {
+            amount = amount / 100;
+          }
+        }
+
+        // 2. Vaqtni tekshirish (time parametri orqali: YYYYMMDD...)
+        const timeParam = params.get("time") || params.get("t");
+        if (timeParam && timeParam.length >= 8) {
+          const checkDateStr = timeParam.substring(0, 8); // YYYYMMDD
+          
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayStr = ${year}${month}${day};
+
+          if (checkDateStr !== todayStr) {
+            isExpired = true;
+          }
+        }
+      } catch (err) {
+        // Zaxira: aniq s= parametri uchun regex
+        const matchAmount = text.match(/[?&]s=([0-9]+)/);
+        if (matchAmount && matchAmount[1]) {
+          amount = parseFloat(matchAmount[1]);
+          if (amount >= 1000000) amount = amount / 100;
         }
       }
 
@@ -128,8 +143,32 @@
 
     function onScanSuccess(decodedText) {
       if (!isScanning) return;
-      isScanning = false;
 
+      const checkData = parseFiscalCheck(decodedText);
+
+      // 1. Agar haqiqiy fiskal chek bo'lmasa yoki summa aniqlanmasa
+      if (!checkData  checkData.amount === null  isNaN(checkData.amount)) {
+        showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy kassa chekini skanerlang.", "error");
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+        return;
+      }
+
+      // 2. Chek eskirgan bo'lsa (bugungi xarid bo'lmasa)
+      if (checkData.isExpired) {
+        showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.", "error");
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+        return;
+      }
+
+      // 3. Xarid summasi 60 000 dan kam bo'lsa
+      if (checkData.amount < 60000) {
+        showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so'm", "error");
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+        return;
+      }
+
+      // Barcha shartlar to'liq bajarilsa: kamerani to'xtatamiz va yuboramiz
+      isScanning = false;
       html5QrCode.stop().then(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const telegramUser = tg.initDataUnsafe?.user;
@@ -137,30 +176,6 @@
         const currentUserId = urlParams.get('tg_id') || (telegramUser?.id ? String(telegramUser.id) : "test_user_123");
         const currentUserName = urlParams.get('name') || (telegramUser?.first_name ? telegramUser.first_name : "Mijoz");
 
-        const checkData = parseFiscalCheck(decodedText);
-
-        // 1. Standart kassa cheki bo'lmasa
-        if (!checkData || !checkData.amount) {
-          showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy kassa chekini skanerlang.", "error");
-          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
-          return;
-        }
-
-        // 2. Chek eskirgan bo'lsa (bugungi kunga tegishli bo'lmasa)
-        if (checkData.isExpired) {
-          showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.", "error");
-          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
-          return;
-        }
-
-        // 3. Xarid summasi 60 000 dan kam bo'lsa
-        if (checkData.amount < 60000) {
-          showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so'm", "error");
-          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
-          return;
-        }
-
-        // Shartlar to'liq bajarilganda
         showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so'm", "success");
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
@@ -178,10 +193,9 @@
           })
         });
 
-        // Oynani 150 ms ichida yopish
         setTimeout(() => {
           tg.close();
-        }, 150);
+        }, 300);
       });
     }
 
