@@ -2,91 +2,112 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Sakina - Chekni Skanerlash</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 16px;
-      background-color: #f8fafc;
+      background-color: #0f172a;
+      color: white;
       display: flex;
       flex-direction: column;
       align-items: center;
+      min-height: 100vh;
       text-align: center;
     }
-    h2 {
-      margin-top: 10px;
-      color: #1e293b;
-    }
-    p {
-      color: #64748b;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-    #reader {
+    h2 { margin: 8px 0 4px; font-size: 20px; }
+    p { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
+    
+    .camera-box {
+      position: relative;
       width: 100%;
-      max-width: 380px;
-      border-radius: 16px;
+      max-width: 320px;
+      height: 320px;
+      border-radius: 20px;
       overflow: hidden;
-      border: 2px solid #e2e8f0;
+      border: 3px solid #38bdf8;
       background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    canvas { display: none; }
+    
+    .scanner-laser {
+      position: absolute;
+      width: 90%;
+      height: 2px;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+      animation: scan 2s infinite ease-in-out;
+    }
+    @keyframes scan {
+      0% { top: 10%; }
+      50% { top: 90%; }
+      100% { top: 10%; }
+    }
+
     #status {
-      margin-top: 20px;
+      margin-top: 16px;
       padding: 12px 16px;
-      border-radius: 10px;
+      border-radius: 12px;
       font-size: 14px;
-      display: none;
-      max-width: 360px;
+      max-width: 320px;
       line-height: 1.4;
+      display: none;
       white-space: pre-line;
     }
-    .success {
-      background-color: #dcfce7;
-      color: #166534;
-      border: 1px solid #86efac;
-    }
-    .error {
-      background-color: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
-    }
+    .error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
+    .success { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #86efac; }
   </style>
 </head>
 <body>
 
   <h2>Kassa chekini skanerlang</h2>
-  <p>Fiskal chekdagi QR-kodni kameraga to‘g‘rilang</p>
+  <p>QR-kodni to‘rtburchak ichiga to‘g‘rilang</p>
 
-  <!-- Kamera aynan shu blok ichida ochiladi -->
-  <div id="reader"></div>
+  <div class="camera-box">
+    <video id="video" playsinline autoplay muted></video>
+    <div class="scanner-laser"></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
   <div id="status"></div>
 
   <script>
-    const tg = window.Telegram ? window.Telegram.WebApp : null;
+    const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
-
+    
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const statusDiv = document.getElementById('status');
+    
     let isScanning = true;
 
     function showStatus(text, type) {
-      const statusDiv = document.getElementById('status');
       statusDiv.style.display = 'block';
       statusDiv.className = type;
       statusDiv.innerText = text;
     }
 
-    // Summani va sanani aniq olish (FB bilan adashtirmasdan)
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
-
       let amount = null;
       let isExpired = false;
 
@@ -95,28 +116,18 @@
         const parsedUrl = new URL(cleanUrl);
         const params = parsedUrl.searchParams;
 
-        // 1. Faqat 's' parametrini olamiz
         const sParam = params.get("s");
         if (sParam) {
           amount = parseFloat(sParam);
-          if (amount >= 1000000) {
-            amount = amount / 100;
-          }
+          if (amount >= 1000000) amount = amount / 100;
         }
 
-        // 2. Vaqt tekshiruvi (bugungi kun)
         const timeParam = params.get("time") || params.get("t");
         if (timeParam && timeParam.length >= 8) {
           const checkDateStr = timeParam.substring(0, 8);
           const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const todayStr = ${year}${month}${day};
-
-          if (checkDateStr !== todayStr) {
-            isExpired = true;
-          }
+          const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+          if (checkDateStr !== todayStr) isExpired = true;
         }
       } catch (err) {
         const matchAmount = text.match(/[?&]s=([0-9]+)/);
@@ -129,63 +140,70 @@
       return { amount: amount, isExpired: isExpired };
     }
 
-    function onScanSuccess(decodedText) {
+    function tick() {
       if (!isScanning) return;
 
-      const checkData = parseFiscalCheck(decodedText);
-
-      if (!checkData  checkData.amount === null  isNaN(checkData.amount)) {
-        showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy kassa chekini skanerlang.", "error");
-        return;
-      }
-
-      if (checkData.isExpired) {
-        showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.
-                   ", "error");
-        return;
-      }
-
-      if (checkData.amount < 60000) {
-        showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so'm", "error");
-        return;
-      }
-
-      // To'g'ri bo'lsa:
-      isScanning = false;
-      html5QrCode.stop().then(() => {
-        showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so'm", "success");
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const telegramUser = tg ? tg.initDataUnsafe?.user : null;
-        const currentUserId = urlParams.get('tg_id') || (telegramUser?.id ? String(telegramUser.id) : "test_user_123");
-        const currentUserName = urlParams.get('name') || (telegramUser?.first_name ? telegramUser.first_name : "Mijoz");
-
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({
-            user_id: currentUserId,
-            user_name: currentUserName,
-            qr_code: decodedText,
-            amount: checkData.amount
-          })
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert"
         });
 
-        setTimeout(() => {
-          if (tg) tg.close();
-        }, 400);
-      });
+        if (code && code.data) {
+          const checkData = parseFiscalCheck(code.data);
+
+          if (!checkData || checkData.amount === null || isNaN(checkData.amount)) {
+            showStatus("❌ Bu haqiqiy kassa cheki emas!", "error");
+          } else if (checkData.isExpired) {
+            showStatus("❌ Chekning amal qilish muddati o‘tgan!\nFaqat bugungi cheklar qabul qilinadi.", "error");
+          } else if (checkData.amount < 60000) {
+            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizda: " + checkData.amount.toLocaleString() + " so‘m", "error");
+          } else {
+            isScanning = false;
+            showStatus("✅ Chek qabul qilindi!\nSumma: " + checkData.amount.toLocaleString() + " so‘m", "success");
+            
+            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentUserId = urlParams.get('tg_id') || (tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "user");
+            const currentUserName = urlParams.get('name') || (tg?.initDataUnsafe?.user?.first_name ? tg.initDataUnsafe.user.first_name : "Mijoz");
+
+            fetch(APPS_SCRIPT_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify({
+                user_id: currentUserId,
+                user_name: currentUserName,
+                qr_code: code.data,
+                amount: checkData.amount
+              })
+            });
+
+            setTimeout(() => {
+              if (tg) tg.close();
+            }, 600);
+            return;
+          }
+        }
+      }
+      requestAnimationFrame(tick);
     }
 
-    // Sahifa ochilishi bilan kamerani avvalgidek to'g'ridan-to'g'ri yoqish
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      onScanSuccess
-    ).catch(err => {
-      showStatus("Kamerani yoqib bo‘lmadi. Iltimos, brauzerda kameraga ruxsat bering.", "error");
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    }).then(function(stream) {
+      video.srcObject = stream;
+      video.setAttribute("playsinline", true);
+      video.play();
+      requestAnimationFrame(tick);
+    }).catch(function(err) {
+      showStatus("❌ Kamerani yoqib bo‘lmadi.\nSozlamalardan Telegramga kameraga ruxsat bering.", "error");
     });
   </script>
 </body>
