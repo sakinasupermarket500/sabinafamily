@@ -10,62 +10,28 @@
     * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 16px;
-      background-color: #0f172a;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      text-align: center;
+      margin: 0; padding: 16px; background-color: #0f172a; color: white;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; text-align: center;
     }
     h2 { margin: 8px 0 4px; font-size: 20px; }
     p { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
-    
     .camera-box {
-      position: relative;
-      width: 100%;
-      max-width: 320px;
-      height: 320px;
-      border-radius: 20px;
-      overflow: hidden;
-      border: 3px solid #38bdf8;
-      background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative; width: 100%; max-width: 320px; height: 320px;
+      border-radius: 20px; overflow: hidden; border: 3px solid #38bdf8;
+      background: #000; display: flex; align-items: center; justify-content: center;
     }
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    video { width: 100%; height: 100%; object-fit: cover; }
     canvas { display: none; }
-    
     .scanner-laser {
-      position: absolute;
-      width: 90%;
-      height: 2px;
-      background: #38bdf8;
-      box-shadow: 0 0 10px #38bdf8;
-      animation: scan 2s infinite ease-in-out;
+      position: absolute; width: 90%; height: 2px; background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8; animation: scan 2s infinite ease-in-out;
     }
-    @keyframes scan {
-      0% { top: 10%; }
-      50% { top: 90%; }
-      100% { top: 10%; }
-    }
-
+    @keyframes scan { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
     #status {
-      margin-top: 16px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      max-width: 320px;
-      line-height: 1.4;
-      display: none;
-      white-space: pre-line;
+      margin-top: 16px; padding: 12px 16px; border-radius: 12px;
+      font-size: 14px; max-width: 320px; line-height: 1.4;
+      display: none; white-space: pre-line;
     }
     .error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
     .success { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #86efac; }
@@ -86,11 +52,9 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
+    if (tg) { tg.ready(); tg.expand(); }
 
+    // GOOGLE APPS SCRIPT URL MANZILINGIZ
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
     
     const video = document.getElementById('video');
@@ -106,10 +70,10 @@
       statusDiv.innerText = text;
     }
 
+    // SUMMANI TO'G'RI AJRATIB OLISH FUNKSIYASI
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
 
-      // Soliq fiskal cheki havolasi ekanligini tasdiqlash
       const isFiscal = text.includes("soliq.uz") || text.includes("s=") || text.includes("ofd");
       if (!isFiscal) return null;
 
@@ -120,20 +84,36 @@
         const parsedUrl = new URL(cleanUrl);
         const params = parsedUrl.searchParams;
 
-        // Summani aniq 's' parametridan ajratib olish
+        // 1. Standart holatda 's' parametridan summani olish
         const sParam = params.get("s");
-        if (sParam) {
+        if (sParam && !isNaN(parseFloat(sParam))) {
           amount = parseFloat(sParam);
-          if (amount >= 1000000) {
+          // Agar summa tiyinda berilgan bo'lsa (masalan 8000000), uni so'mga o'tkazamiz (80000)
+          if (amount >= 100000) { 
             amount = amount / 100;
           }
         }
-      } catch (err) {
-        const matchAmount = text.match(/[?&]s=([0-9]+)/);
-        if (matchAmount && matchAmount[1]) {
-          amount = parseFloat(matchAmount[1]);
-          if (amount >= 1000000) amount = amount / 100;
+        
+        // 2. Ba'zi kassalar 'sum' yoki 'total' parametrini ishlatishi mumkin (zaxira variant)
+        if (!amount || amount === 0) {
+          const sumParam = params.get("sum") || params.get("total");
+          if (sumParam) amount = parseFloat(sumParam);
         }
+
+      } catch (err) {
+        // Agar URL tahlil qilinmasa, Regex orqali qidiramiz
+        const matchAmount = text.match(/[?&](s|sum|total)=([0-9\.]+)/);
+        if (matchAmount && matchAmount[2]) {
+          amount = parseFloat(matchAmount[2]);
+          if (amount >= 100000) amount = amount / 100;
+        }
+      }
+
+      // 3. HIMOYA: Agar summa 10 milliondan oshsa, bu summa emas, balki F.S (Fiskal belgi) yoki ID!
+      // Sizning holatingizda 7 milliard chiqqan edi. Shunga qarshi himoya:
+      if (amount > 10000000) {
+        // Bu noto'g'ri raqam. Bunga yo'l qo'ymaymiz. Uni qayta ishlamaymiz.
+        return { amount: null, errorMsg: "Chek noto'g'ri o'qildi yoki summa yashirilgan." };
       }
 
       return { amount: amount };
@@ -157,16 +137,23 @@
 
           // 1. Agar fiskal chek bo'lmasa yoki summa aniqlanmasa
           if (!checkData || checkData.amount === null || isNaN(checkData.amount)) {
-            showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy fiskal kassa chekini skanerlang.", "error");
+            showStatus("❌ Bu haqiqiy kassa cheki emas yoki summani o'qib bo'lmadi!\nIltimos, boshqa chek skanerlang.", "error");
+            // 3 soniyadan keyin qayta urinish
+            isScanning = false;
+            setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
           } 
           // 2. Agar summa 60 000 so'mdan kam bo'lsa
           else if (checkData.amount < 60000) {
-            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so‘m", "error");
+            isScanning = false;
+            showStatus("❌ Kechirasiz, mana shuncha ekan (" + checkData.amount.toLocaleString() + " so‘m).\nShu buyurtmangiz bu bo‘lmaydi.", "error");
+            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+            setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
+            return;
           } 
-          // 3. Hammasi to'g'ri bo'lsa - darhol qabul qilish
+          // 3. Hammasi to'g'ri bo'lsa (60 000 dan yuqori bo'lsa) - qabul qilish
           else {
             isScanning = false;
-            showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so‘m", "success");
+            showStatus("✅ Chekingiz muvaffaqiyatli qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so‘m.\nRahmat! 😊", "success");
             
             if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
@@ -188,7 +175,7 @@
 
             setTimeout(() => {
               if (tg) tg.close();
-            }, 600);
+            }, 2000); // Foydalanuvchi o'qishi uchun 2 soniya kutamiz
             return;
           }
         }
