@@ -124,8 +124,10 @@
           return;
         }
 
-        showStatus("Chek tekshirilmoqda...", "loading");
+        showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
+        // 1. Google Sheets'ga ma'lumotni jo'natish
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -138,19 +140,12 @@
             qr_code: decodedText,
             amount: detectedAmount
           })
-        })
-        .then(() => {
-          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
-          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-
-          // Oynani zudlik bilan yopish
-          setTimeout(() => {
-            tg.close();
-          }, 400);
-        })
-        .catch(err => {
-          showStatus("Ulanishda xatolik yuz berdi: " + err, "error");
         });
+
+        // 2. Mini App oynasini 150 ms ichida tezda yopish
+        setTimeout(() => {
+          tg.close();
+        }, 150);
       });
     }
 
