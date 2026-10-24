@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sakina - Chekni Skanerlash</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Kamera orqali QR o'qish uchun yengil kutubxona -->
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
@@ -44,6 +43,7 @@
       display: none;
       max-width: 360px;
       line-height: 1.4;
+      white-space: pre-line;
     }
     .success {
       background-color: #dcfce7;
@@ -68,20 +68,14 @@
   <p>QR-kodni kameraga to‘g‘rilang</p>
 
   <div id="reader"></div>
-
   <div id="status"></div>
 
   <script>
     const tg = window.Telegram.WebApp;
+    tg.ready();
     tg.expand();
 
-    // SIZNING APPS SCRIPT HAVOLANGIZ
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
-
-    const user = tg.initDataUnsafe?.user || {
-      id: "test_user_123",
-      first_name: "Sinovchi"
-    };
 
     let isScanning = true;
 
@@ -92,19 +86,18 @@
       statusDiv.innerText = text;
     }
 
-    // QR ichidan summani ajratish (agar Soliq cheki bo'lsa)
     function parseAmountFromQR(text) {
       try {
         const match = text.match(/[?&]s=([0-9.]+)/i);
         if (match && match[1]) {
           let val = parseFloat(match[1]);
           if (val > 1000000) {
-            val = val / 100; // Tiyindan so'mga o'tkazish
+            val = val / 100;
           }
           return val;
         }
       } catch (e) {
-        console.error("Summa xatoligi:", e);
+        console.error("Summa ajratishda xatolik:", e);
       }
       return null;
     }
@@ -114,21 +107,25 @@
       isScanning = false;
 
       html5QrCode.stop().then(() => {
-        let detectedAmount = parseAmountFromQR(decodedText);
+        // Telegram user ma'lumotlarini bevosita skanerlash daqiqasida olish
+        const telegramUser = tg.initDataUnsafe?.user;
+        const currentUserId = telegramUser?.id ? String(telegramUser.id) : "test_user_123";
+        const currentUserName = telegramUser?.first_name 
+          ? (telegramUser.first_name + (telegramUser.last_name ? " " + telegramUser.last_name : "")) 
+          : "Sinovchi";
 
-        // Agar begona QR yoki oddiy test QR bo'lsa, sinov uchun 65000 qilib oladi
+        let detectedAmount = parseAmountFromQR(decodedText);
         if (!detectedAmount) {
-          detectedAmount = 65000;
+          detectedAmount = 65000; // Sinov uchun
         }
 
-        // 60 000 so'mdan kam bo'lsa darhol to'xtatish
         if (detectedAmount < 60000) {
           showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + detectedAmount.toLocaleString() + " so'm", "error");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
           return;
         }
 
-        showStatus("Chek tekshirilmoqda, kuting...", "loading");
+        showStatus("Chek tekshirilmoqda va qayd etilmoqda...", "loading");
 
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
@@ -137,15 +134,19 @@
             "Content-Type": "text/plain;charset=utf-8"
           },
           body: JSON.stringify({
-            user_id: user.id,
-            user_name: user.first_name,
+            user_id: currentUserId,
+            user_name: currentUserName,
             qr_code: decodedText,
             amount: detectedAmount
           })
         })
         .then(() => {
-          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
+          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm\nBotingizga xabar yuborildi.", "success");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+          
+          setTimeout(() => {
+            tg.close();
+          }, 2000);
         })
         .catch(err => {
           showStatus("Ulanishda xatolik yuz berdi: " + err, "error");
