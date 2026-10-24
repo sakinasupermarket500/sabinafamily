@@ -65,7 +65,7 @@
 <body>
 
   <h2>Kassa chekini skanerlang</h2>
-  <p>Chekning pastki qismidagi QR-kodni kameraga to‘g‘rilang</p>
+  <p>QR-kodni kameraga to‘g‘rilang</p>
 
   <div id="reader"></div>
 
@@ -75,7 +75,7 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // APPS SCRIPT HAVOLASI
+    // SIZNING APPS SCRIPT HAVOLANGIZ
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
 
     const user = tg.initDataUnsafe?.user || {
@@ -92,15 +92,44 @@
       statusDiv.innerText = text;
     }
 
+    // QR ichidan summani ajratish (agar Soliq cheki bo'lsa)
+    function parseAmountFromQR(text) {
+      try {
+        const match = text.match(/[?&]s=([0-9.]+)/i);
+        if (match && match[1]) {
+          let val = parseFloat(match[1]);
+          if (val > 1000000) {
+            val = val / 100; // Tiyindan so'mga o'tkazish
+          }
+          return val;
+        }
+      } catch (e) {
+        console.error("Summa xatoligi:", e);
+      }
+      return null;
+    }
+
     function onScanSuccess(decodedText) {
       if (!isScanning) return;
       isScanning = false;
 
-      // Kamerani to'xtatish
       html5QrCode.stop().then(() => {
-        showStatus("Chek yuborilmoqda, kuting...", "loading");
+        let detectedAmount = parseAmountFromQR(decodedText);
 
-        // CORS to'sig'ini aylanib o'tish uchun no-cors rejimi
+        // Agar begona QR yoki oddiy test QR bo'lsa, sinov uchun 65000 qilib oladi
+        if (!detectedAmount) {
+          detectedAmount = 65000;
+        }
+
+        // 60 000 so'mdan kam bo'lsa darhol to'xtatish
+        if (detectedAmount < 60000) {
+          showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + detectedAmount.toLocaleString() + " so'm", "error");
+          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+          return;
+        }
+
+        showStatus("Chek tekshirilmoqda, kuting...", "loading");
+
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -111,11 +140,11 @@
             user_id: user.id,
             user_name: user.first_name,
             qr_code: decodedText,
-            amount: 65000
+            amount: detectedAmount
           })
         })
         .then(() => {
-          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!", "success");
+          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
         })
         .catch(err => {
