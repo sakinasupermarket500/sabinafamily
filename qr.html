@@ -87,11 +87,7 @@
         // 1. Standart holatda 's' parametridan summani olish
         const sParam = params.get("s");
         if (sParam && !isNaN(parseFloat(sParam))) {
-          amount = parseFloat(sParam);
-          // Agar summa tiyinda berilgan bo'lsa (masalan 8000000), uni so'mga o'tkazamiz (80000)
-          if (amount >= 100000) { 
-            amount = amount / 100;
-          }
+          amount = parseFloat(sParam) / 100;
         }
         
         // 2. Ba'zi kassalar 'sum' yoki 'total' parametrini ishlatishi mumkin (zaxira variant)
@@ -104,15 +100,12 @@
         // Agar URL tahlil qilinmasa, Regex orqali qidiramiz
         const matchAmount = text.match(/[?&](s|sum|total)=([0-9\.]+)/);
         if (matchAmount && matchAmount[2]) {
-          amount = parseFloat(matchAmount[2]);
-          if (amount >= 100000) amount = amount / 100;
+          amount = parseFloat(matchAmount[2]) / 100;
         }
       }
 
-      // 3. HIMOYA: Agar summa 10 milliondan oshsa, bu summa emas, balki F.S (Fiskal belgi) yoki ID!
-      // Sizning holatingizda 7 milliard chiqqan edi. Shunga qarshi himoya:
-      if (amount > 10000000) {
-        // Bu noto'g'ri raqam. Bunga yo'l qo'ymaymiz. Uni qayta ishlamaymiz.
+      // 3. HIMOYA: Agar summa 10 milliondan oshsa, bu summa emas, balki FB (Fiskal belgi) yoki ID!
+      if (amount && amount > 10000000) {
         return { amount: null, errorMsg: "Chek noto'g'ri o'qildi yoki summa yashirilgan." };
       }
 
@@ -138,14 +131,13 @@
           // 1. Agar fiskal chek bo'lmasa yoki summa aniqlanmasa
           if (!checkData || checkData.amount === null || isNaN(checkData.amount)) {
             showStatus("❌ Bu haqiqiy kassa cheki emas yoki summani o'qib bo'lmadi!\nIltimos, boshqa chek skanerlang.", "error");
-            // 3 soniyadan keyin qayta urinish
             isScanning = false;
             setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
           } 
           // 2. Agar summa 60 000 so'mdan kam bo'lsa
           else if (checkData.amount < 60000) {
             isScanning = false;
-            showStatus("❌ Kechirasiz, mana shuncha ekan (" + checkData.amount.toLocaleString() + " so‘m).\nShu buyurtmangiz bu bo‘lmaydi.", "error");
+            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so‘m.\nAksiyada kamida 60 000 so‘mlik cheklar qabul qilinadi.", "error");
             if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
             setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
             return;
@@ -175,7 +167,7 @@
 
             setTimeout(() => {
               if (tg) tg.close();
-            }, 2000); // Foydalanuvchi o'qishi uchun 2 soniya kutamiz
+            }, 2000);
             return;
           }
         }
