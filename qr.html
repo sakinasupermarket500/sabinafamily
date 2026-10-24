@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sakina - Chekni Skanerlash</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Kamera orqali QR o'qish uchun yengil kutubxona -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 10px;
+      color: #1e293b;
+    }
+    p {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 380px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      background: white;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      display: none;
+      max-width: 360px;
+      line-height: 1.4;
+    }
+    .success {
+      background-color: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .error {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .loading {
+      background-color: #e0f2fe;
+      color: #075985;
+      border: 1px solid #7dd3fc;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Kassa chekini skanerlang</h2>
+  <p>Chekning pastki qismidagi QR-kodni kameraga to‘g‘rilang</p>
+
+  <div id="reader"></div>
+
+  <div id="status"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    // SIZNING TAYYOR APPS SCRIPT HAVOLANGIZ
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
+
+    const user = tg.initDataUnsafe?.user || {
+      id: "test_user_123",
+      first_name: "Sinovchi"
+    };
+
+    let isScanning = true;
+
+    function showStatus(text, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.style.display = 'block';
+      statusDiv.className = type;
+      statusDiv.innerText = text;
+    }
+
+    function onScanSuccess(decodedText) {
+      if (!isScanning) return;
+      isScanning = false;
+
+      // Kamera o'qishini to'xtatish
+      html5QrCode.stop().then(() => {
+        showStatus("Chek tekshirilmoqda, kuting...", "loading");
+
+        // Google Apps Script'ga yuborish
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            user_id: user.id,
+            user_name: user.first_name,
+            qr_code: decodedText,
+            amount: 65000 // Sinov uchun o'tadigan summa
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === "winner") {
+            showStatus(data.message + "\n\nVaucher kodi: " + data.voucher, "success");
+            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+          } else if (data.status === "success") {
+            showStatus(data.message, "success");
+            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+          } else {
+            showStatus(data.message, "error");
+            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+          }
+        })
+        .catch(err => {
+          showStatus("Ulanishda xatolik yuz berdi: " + err, "error");
+        });
+      });
+    }
+
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" }, // Smartfonning orqa kamerasi
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      onScanSuccess
+    ).catch(err => {
+      showStatus("Kamerani yoqib bo‘lmadi: " + err, "error");
+    });
+  </script>
+</body>
+</html>
