@@ -65,7 +65,7 @@
 <body>
 
   <h2>Kassa chekini skanerlang</h2>
-  <p>QR-kodni kameraga to‘g‘rilang</p>
+  <p>Fiskal chekdagi QR-kodni kameraga to‘g‘rilang</p>
 
   <div id="reader"></div>
   <div id="status"></div>
@@ -86,19 +86,27 @@
       statusDiv.innerText = text;
     }
 
-    function parseAmountFromQR(text) {
-      try {
-        const match = text.match(/[?&]s=([0-9.]+)/i);
-        if (match && match[1]) {
-          let val = parseFloat(match[1]);
-          if (val > 1000000) {
-            val = val / 100;
-          }
-          return val;
-        }
-      } catch (e) {
-        console.error("Summa ajratishda xatolik:", e);
+    // Rasmiy fiskal chek ekanini tekshirish va summasini ajratish
+    function parseFiscalCheck(text) {
+      if (!text || typeof text !== "string") return null;
+
+      // Soliq fiskal cheklarining asosiy belgilari (ofd.soliq.uz yoki s= summasi bo'lishi kerak)
+      const hasSoliqParam = text.includes("s=") || text.includes("ofd.soliq.uz") || text.includes("soliq.uz");
+      if (!hasSoliqParam) {
+        return null; // Telegram havola yoki begona QR kodlar shu yerda to'xtatiladi
       }
+
+      // Summani ajratib olish (s= parametrini qidiradi)
+      const match = text.match(/[?&]s=([0-9.]+)/i);
+      if (match && match[1]) {
+        let val = parseFloat(match[1]);
+        // Agar summa tiyinda ko'rsatilgan bo'lsa (1 mln dan katta bo'lsa), so'mga aylantiramiz
+        if (val > 1000000) {
+          val = val / 100;
+        }
+        return val;
+      }
+
       return null;
     }
 
@@ -113,11 +121,16 @@
         const currentUserId = urlParams.get('tg_id') || (telegramUser?.id ? String(telegramUser.id) : "test_user_123");
         const currentUserName = urlParams.get('name') || (telegramUser?.first_name ? telegramUser.first_name : "Mijoz");
 
-        let detectedAmount = parseAmountFromQR(decodedText);
+        // 1. Standart fiskal chek ekanini va summasini tekshiramiz
+        const detectedAmount = parseFiscalCheck(decodedText);
+
         if (!detectedAmount) {
-          detectedAmount = 45000;
+          showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, Davlat Soliq Qo'mitasining rasmiy fiskal chekini skanerlang.", "error");
+          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+          return;
         }
 
+        // 2. Summa 60 000 dan kam bo'lsa
         if (detectedAmount < 60000) {
           showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + detectedAmount.toLocaleString() + " so'm", "error");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
@@ -127,7 +140,7 @@
         showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
-        // 1. Google Sheets'ga ma'lumotni jo'natish
+        // 3. Ma'lumotni Google Apps Script ga uzatamiz
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -142,7 +155,7 @@
           })
         });
 
-        // 2. Mini App oynasini 150 ms ichida tezda yopish
+        // 4. Foydalanuvchi tasdiqni ko'rishi bilan oynani zudlik bilan yopamiz
         setTimeout(() => {
           tg.close();
         }, 150);
