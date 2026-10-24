@@ -75,7 +75,7 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // SIZNING TAYYOR APPS SCRIPT HAVOLANGIZ
+    // APPS SCRIPT HAVOLASI
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
 
     const user = tg.initDataUnsafe?.user || {
@@ -96,33 +96,27 @@
       if (!isScanning) return;
       isScanning = false;
 
-      // Kamera o'qishini to'xtatish
+      // Kamerani to'xtatish
       html5QrCode.stop().then(() => {
-        showStatus("Chek tekshirilmoqda, kuting...", "loading");
+        showStatus("Chek yuborilmoqda, kuting...", "loading");
 
-        // Google Apps Script'ga yuborish
+        // CORS to'sig'ini aylanib o'tish uchun no-cors rejimi
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
           body: JSON.stringify({
             user_id: user.id,
             user_name: user.first_name,
             qr_code: decodedText,
-            amount: 65000 // Sinov uchun o'tadigan summa
+            amount: 65000
           })
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status === "winner") {
-            showStatus(data.message + "\n\nVaucher kodi: " + data.voucher, "success");
-            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-          } else if (data.status === "success") {
-            showStatus(data.message, "success");
-            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-          } else {
-            showStatus(data.message, "error");
-            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
-          }
+        .then(() => {
+          showStatus("✅ Chek muvaffaqiyatli qabul qilindi!", "success");
+          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
         })
         .catch(err => {
           showStatus("Ulanishda xatolik yuz berdi: " + err, "error");
@@ -132,7 +126,7 @@
 
     const html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
-      { facingMode: "environment" }, // Smartfonning orqa kamerasi
+      { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       onScanSuccess
     ).catch(err => {
