@@ -54,14 +54,12 @@
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
 
-    // GOOGLE APPS SCRIPT URL MANZILINGIZ
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCYYey91UfsPfueoCxgXFhCnm5qa9AQO7uKovrgS02lbLYMIFQ9uQYcJi3q3gpfGrF_g/exec";
     
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const statusDiv = document.getElementById('status');
-    
     let isScanning = true;
 
     function showStatus(text, type) {
@@ -70,46 +68,36 @@
       statusDiv.innerText = text;
     }
 
-    // SUMMANI TO'G'RI AJRATIB OLISH FUNKSIYASI
     function parseFiscalCheck(text) {
-      if (!text || typeof text !== "string") return null;
+      if (!text || typeof text !== "string") return { isValid: false, error: "not_fiscal" };
 
-      const isFiscal = text.includes("soliq.uz") || text.includes("s=") || text.includes("ofd");
-      if (!isFiscal) return null;
-
-      let amount = null;
+      if (!text.includes("ofd.soliq.uz") && !text.includes("soliq.uz")) {
+        return { isValid: false, error: "not_fiscal" };
+      }
 
       try {
         const cleanUrl = text.startsWith("http") ? text : "https://" + text;
         const parsedUrl = new URL(cleanUrl);
         const params = parsedUrl.searchParams;
 
-        // 1. Standart holatda 's' parametridan summani olish
-        const sParam = params.get("s");
-        if (sParam && !isNaN(parseFloat(sParam))) {
-          amount = parseFloat(sParam) / 100;
-        }
-        
-        // 2. Ba'zi kassalar 'sum' yoki 'total' parametrini ishlatishi mumkin (zaxira variant)
-        if (!amount || amount === 0) {
-          const sumParam = params.get("sum") || params.get("total");
-          if (sumParam) amount = parseFloat(sumParam);
-        }
+        // Sana Soliq QR-kodida aynan 'c' parametrida keladi: c=20261024183346
+        const cParam = params.get("c");
+        if (cParam && cParam.length >= 8) {
+          const checkDate = cParam.substring(0, 8); // YYYYMMDD
+          const now = new Date();
+          const yyyy = String(now.getFullYear());
+          const mm = String(now.getMonth() + 1).padStart(2, '0');
+          const dd = String(now.getDate()).padStart(2, '0');
+          const today = `${yyyy}${mm}${dd}`;
 
-      } catch (err) {
-        // Agar URL tahlil qilinmasa, Regex orqali qidiramiz
-        const matchAmount = text.match(/[?&](s|sum|total)=([0-9\.]+)/);
-        if (matchAmount && matchAmount[2]) {
-          amount = parseFloat(matchAmount[2]) / 100;
+          if (checkDate !== today) {
+            return { isValid: false, error: "expired" };
+          }
         }
+        return { isValid: true };
+      } catch (e) {
+        return { isValid: false, error: "not_fiscal" };
       }
-
-      // 3. HIMOYA: Agar summa 10 milliondan oshsa, bu summa emas, balki FB (Fiskal belgi) yoki ID!
-      if (amount && amount > 10000000) {
-        return { amount: null, errorMsg: "Chek noto'g'ri o'qildi yoki summa yashirilgan." };
-      }
-
-      return { amount: amount };
     }
 
     function tick() {
@@ -126,26 +114,20 @@
         });
 
         if (code && code.data) {
-          const checkData = parseFiscalCheck(code.data);
+          const check = parseFiscalCheck(code.data);
 
-          // 1. Agar fiskal chek bo'lmasa yoki summa aniqlanmasa
-          if (!checkData || checkData.amount === null || isNaN(checkData.amount)) {
-            showStatus("❌ Bu haqiqiy kassa cheki emas yoki summani o'qib bo'lmadi!\nIltimos, boshqa chek skanerlang.", "error");
+          if (!check.isValid && check.error === "not_fiscal") {
+            showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy kassa chekini skanerlang.", "error");
             isScanning = false;
             setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
-          } 
-          // 2. Agar summa 60 000 so'mdan kam bo'lsa
-          else if (checkData.amount < 60000) {
+          } else if (!check.isValid && check.error === "expired") {
+            showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.", "error");
             isScanning = false;
-            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so‘m.\nAksiyada kamida 60 000 so‘mlik cheklar qabul qilinadi.", "error");
-            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
             setTimeout(() => { statusDiv.style.display = 'none'; isScanning = true; requestAnimationFrame(tick); }, 3000);
-            return;
-          } 
-          // 3. Hammasi to'g'ri bo'lsa (60 000 dan yuqori bo'lsa) - qabul qilish
-          else {
+          } else {
+            // Muvaffaqiyatli o'qildi
             isScanning = false;
-            showStatus("✅ Chekingiz muvaffaqiyatli qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so‘m.\nRahmat! 😊", "success");
+            showStatus("✅ Chek qabul qilindi!\nMa'lumotlar saqlanmoqda...", "success");
             
             if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
@@ -160,14 +142,13 @@
               body: JSON.stringify({
                 user_id: currentUserId,
                 user_name: currentUserName,
-                qr_code: code.data,
-                amount: checkData.amount
+                qr_code: code.data
               })
             });
 
             setTimeout(() => {
               if (tg) tg.close();
-            }, 2000);
+            }, 1500);
             return;
           }
         }
