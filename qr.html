@@ -106,6 +106,7 @@
       statusDiv.innerText = text;
     }
 
+    // Fiskal chek ma'lumotlarini aniq ajratib olish
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
       let amount = null;
@@ -116,18 +117,37 @@
         const parsedUrl = new URL(cleanUrl);
         const params = parsedUrl.searchParams;
 
+        // 1. Summani olish (faqat 's' parametri)
         const sParam = params.get("s");
         if (sParam) {
           amount = parseFloat(sParam);
+          // Agar kassa summani tiyinda chiqargan bo'lsa (100 ga bo'lamiz)
           if (amount >= 1000000) amount = amount / 100;
         }
 
+        // 2. Xarid vaqtini tekshirish (faqat 'time' yoki 't' parametri orqali)
+        // Kassa apparati ro'yxatdan o'tgan 2024-yilgi sana bilan aralashmaydi
         const timeParam = params.get("time") || params.get("t");
-        if (timeParam && timeParam.length >= 8) {
-          const checkDateStr = timeParam.substring(0, 8);
+        if (timeParam) {
           const now = new Date();
-          const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-          if (checkDateStr !== todayStr) isExpired = true;
+          const yyyy = String(now.getFullYear());
+          const yy = yyyy.substring(2);
+          const mm = String(now.getMonth() + 1).padStart(2, '0');
+          const dd = String(now.getDate()).padStart(2, '0');
+
+          const fullToday = `${yyyy}${mm}${dd}`;       // 20261024
+          const shortToday = `${yy}${mm}${dd}`;         // 261024
+          const dashToday = `${yyyy}-${mm}-${dd}`;      // 2026-10-24
+          const revDashToday = `${dd}-${mm}-${yyyy}`;   // 24-10-2026
+
+          const isToday = timeParam.includes(fullToday) || 
+                          timeParam.includes(shortToday) || 
+                          timeParam.includes(dashToday) || 
+                          timeParam.includes(revDashToday);
+
+          if (!isToday && timeParam.length >= 6) {
+            isExpired = true;
+          }
         }
       } catch (err) {
         const matchAmount = text.match(/[?&]s=([0-9]+)/);
@@ -161,8 +181,9 @@
           } else if (checkData.isExpired) {
             showStatus("❌ Chekning amal qilish muddati o‘tgan!\nFaqat bugungi cheklar qabul qilinadi.", "error");
           } else if (checkData.amount < 60000) {
-            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizda: " + checkData.amount.toLocaleString() + " so‘m", "error");
+            showStatus("❌ Xarid summasi 60 000 so‘mdan kam!\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so‘m", "error");
           } else {
+            // Chek barcha shartlarga to'liq javob bersa
             isScanning = false;
             showStatus("✅ Chek qabul qilindi!\nSumma: " + checkData.amount.toLocaleString() + " so‘m", "success");
             
@@ -203,7 +224,7 @@
       video.play();
       requestAnimationFrame(tick);
     }).catch(function(err) {
-      showStatus("❌ Kamerani yoqib bo‘lmadi.\nSozlamalardan Telegramga kameraga ruxsat bering.", "error");
+      showStatus("❌ Kamerani yoqib bo‘lmadi.\nIltimos, brauzer sozlamalaridan kameraga ruxsat bering.", "error");
     });
   </script>
 </body>
