@@ -86,28 +86,44 @@
       statusDiv.innerText = text;
     }
 
-    // Rasmiy fiskal chek ekanini tekshirish va summasini ajratish
+    // Fiskal chekni, summasini va sanasini tahlil qilish
     function parseFiscalCheck(text) {
       if (!text || typeof text !== "string") return null;
 
-      // Soliq fiskal cheklarining asosiy belgilari (ofd.soliq.uz yoki s= summasi bo'lishi kerak)
       const hasSoliqParam = text.includes("s=") || text.includes("ofd.soliq.uz") || text.includes("soliq.uz");
-      if (!hasSoliqParam) {
-        return null; // Telegram havola yoki begona QR kodlar shu yerda to'xtatiladi
+      if (!hasSoliqParam) return null;
+
+      // 1. Summani ajratish
+      let amount = null;
+      const matchAmount = text.match(/[?&]s=([0-9.]+)/i);
+      if (matchAmount && matchAmount[1]) {
+        amount = parseFloat(matchAmount[1]);
+        if (amount > 1000000) amount = amount / 100;
       }
 
-      // Summani ajratib olish (s= parametrini qidiradi)
-      const match = text.match(/[?&]s=([0-9.]+)/i);
-      if (match && match[1]) {
-        let val = parseFloat(match[1]);
-        // Agar summa tiyinda ko'rsatilgan bo'lsa (1 mln dan katta bo'lsa), so'mga aylantiramiz
-        if (val > 1000000) {
-          val = val / 100;
+      // 2. Sana/Vaqtni tekshirish (time=YYYYMMDDHHmmss formati)
+      let isExpired = false;
+      const matchTime = text.match(/[?&]time=([0-9]{8})/i);
+      if (matchTime && matchTime[1]) {
+        const checkDateStr = matchTime[1]; // Masalan: "20261020"
+        
+        // Bugungi sana (YYYYMMDD)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}${month}${day}`;
+
+        // Agar chek sanasi bugungi kunga teng bo'lmasa, eskirgan deb hisoblanadi
+        if (checkDateStr !== todayStr) {
+          isExpired = true;
         }
-        return val;
       }
 
-      return null;
+      return {
+        amount: amount,
+        isExpired: isExpired
+      };
     }
 
     function onScanSuccess(decodedText) {
@@ -121,26 +137,33 @@
         const currentUserId = urlParams.get('tg_id') || (telegramUser?.id ? String(telegramUser.id) : "test_user_123");
         const currentUserName = urlParams.get('name') || (telegramUser?.first_name ? telegramUser.first_name : "Mijoz");
 
-        // 1. Standart fiskal chek ekanini va summasini tekshiramiz
-        const detectedAmount = parseFiscalCheck(decodedText);
+        const checkData = parseFiscalCheck(decodedText);
 
-        if (!detectedAmount) {
-          showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, Davlat Soliq Qo'mitasining rasmiy fiskal chekini skanerlang.", "error");
+        // 1. Standart kassa cheki bo'lmasa
+        if (!checkData || !checkData.amount) {
+          showStatus("❌ Bu haqiqiy kassa cheki emas!\nIltimos, rasmiy kassa chekini skanerlang.", "error");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
           return;
         }
 
-        // 2. Summa 60 000 dan kam bo'lsa
-        if (detectedAmount < 60000) {
-          showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + detectedAmount.toLocaleString() + " so'm", "error");
+        // 2. Chek eskirgan bo'lsa (bugungi kunga tegishli bo'lmasa)
+        if (checkData.isExpired) {
+          showStatus("❌ Chekning amal qilish muddati o‘tgan!\nAksiyada faqat bugun xarid qilingan cheklar qabul qilinadi.", "error");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
           return;
         }
 
-        showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm", "success");
+        // 3. Xarid summasi 60 000 dan kam bo'lsa
+        if (checkData.amount < 60000) {
+          showStatus("❌ Xarid summasi yetarli emas!\nAksiyada faqat 60 000 so'mdan yuqori cheklar qabul qilinadi.\nSizning xaridingiz: " + checkData.amount.toLocaleString() + " so'm", "error");
+          if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+          return;
+        }
+
+        // Shartlar to'liq bajarilganda
+        showStatus("✅ Chek qabul qilindi!\nXarid summasi: " + checkData.amount.toLocaleString() + " so'm", "success");
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
 
-        // 3. Ma'lumotni Google Apps Script ga uzatamiz
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -151,11 +174,11 @@
             user_id: currentUserId,
             user_name: currentUserName,
             qr_code: decodedText,
-            amount: detectedAmount
+            amount: checkData.amount
           })
         });
 
-        // 4. Foydalanuvchi tasdiqni ko'rishi bilan oynani zudlik bilan yopamiz
+        // Oynani 150 ms ichida yopish
         setTimeout(() => {
           tg.close();
         }, 150);
