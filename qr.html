@@ -107,13 +107,14 @@
       isScanning = false;
 
       html5QrCode.stop().then(() => {
-        // Telegram user ma'lumotlarini bevosita skanerlash daqiqasida olish
+        // 1. URL parametrlari orqali yuborilgan aniq Telegram ID va Ismni olish
+        const urlParams = new URLSearchParams(window.location.search);
         const telegramUser = tg.initDataUnsafe?.user;
-        const currentUserId = telegramUser?.id ? String(telegramUser.id) : "test_user_123";
-        const currentUserName = telegramUser?.first_name 
-          ? (telegramUser.first_name + (telegramUser.last_name ? " " + telegramUser.last_name : "")) 
-          : "Sinovchi";
 
+        const currentUserId = urlParams.get('tg_id') || (telegramUser?.id ? String(telegramUser.id) : "test_user_123");
+        const currentUserName = urlParams.get('name') || (telegramUser?.first_name ? telegramUser.first_name : "Mijoz");
+
+        // 2. Summani tekshirish
         let detectedAmount = parseAmountFromQR(decodedText);
         if (!detectedAmount) {
           detectedAmount = 65000; // Sinov uchun
@@ -127,6 +128,7 @@
 
         showStatus("Chek tekshirilmoqda va qayd etilmoqda...", "loading");
 
+        // 3. Google Apps Script'ga yuborish
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -144,6 +146,7 @@
           showStatus("✅ Chek muvaffaqiyatli qabul qilindi!\nXarid summasi: " + detectedAmount.toLocaleString() + " so'm\nBotingizga xabar yuborildi.", "success");
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
           
+          // 2 soniyadan so'ng oynani yopish
           setTimeout(() => {
             tg.close();
           }, 2000);
