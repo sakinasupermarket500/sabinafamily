@@ -76,9 +76,38 @@
     input[type=number] {
       -moz-appearance: textfield;
     }
-        html, body {
-     overscroll-behavior-y: none;
+    html, body {
+      overscroll-behavior-y: none;
       touch-action: pan-x pan-y;
+    }
+
+    /* TELEGRAM INLINE BUTTON STYLE (SOFT & SMOOTH) */
+    .tg-inline-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1.5px solid rgba(176, 70, 27, 0.15);
+      background-color: #FFFFFF;
+      color: #2B2621;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tg-inline-btn:active {
+      transform: scale(0.97);
+    }
+    .tg-inline-btn.active {
+      background: linear-gradient(135deg, #B0461B 0%, #8A3414 100%);
+      color: #FFFFFF;
+      border-color: #B0461B;
+      box-shadow: 0 6px 14px rgba(176, 70, 27, 0.28);
     }
   </style>
 </head>
@@ -118,7 +147,6 @@
       <!-- Desktop Nav -->
       <nav class="hidden lg:flex items-center gap-8 text-[12px] uppercase tracking-widest font-semibold text-espresso-800">
         <a href="#haqimizda" class="hover:text-brand-700 transition-colors">Biz Haqimizda</a>
-        <a href="#sara" class="hover:text-brand-700 transition-colors">Mashhur Taomlar</a>
         <a href="#menyu" class="hover:text-brand-700 transition-colors">Taomnoma</a>
         <a href="#buyurtma" class="hover:text-brand-700 transition-colors">Buyurtma Berish</a>
         <a href="#manzil" class="hover:text-brand-700 transition-colors">Manzil</a>
@@ -142,126 +170,25 @@
 
   <main>
     <!-- Hero Section -->
-    <section class="relative pt-8 pb-12 sm:pt-16 sm:pb-20 overflow-hidden">
+    <section class="relative pt-6 pb-8 sm:pt-12 sm:pb-14 overflow-hidden">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-[11px] sm:text-xs tracking-wider uppercase font-bold text-brand-700 mb-2 border border-brand-200">
           ✨ Issiq tandir va qandolat mahsulotlari markazi
         </span>
-        <h1 class="font-serif text-3xl sm:text-6xl font-normal text-espresso-950 tracking-tight leading-tight mb-4">
+        <h1 class="font-serif text-3xl sm:text-5xl font-normal text-espresso-950 tracking-tight leading-tight mb-3">
           Haqiqiy barra go'shtli somsa va qaynoq patirlar.
         </h1>
-        <p class="text-xs sm:text-base text-stone-600 max-w-2xl mx-auto leading-relaxed">
-          Har kuni ertalabdan kechgacha saralangan go'shtlardan tayyorlangan tandir somsalar, qarsildoq qatlamalar hamda xushbo'y issiq nonlar siz uchun muhayyo.
+        <p class="text-xs sm:text-sm text-stone-600 max-w-xl mx-auto leading-relaxed">
+          Tandir somsalar, qarsildoq qatlamalar hamda xushbo'y issiq nonlar siz uchun muhayyo.
         </p>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <a href="#menyu" class="px-6 py-3 rounded-full bg-brand-700 hover:bg-brand-800 text-cream-50 text-xs uppercase tracking-widest font-semibold transition shadow-md flex items-center gap-2">
-            <i class="fa-solid fa-utensils text-[11px]"></i>
-            <span>Taomnomani Ko'rish</span>
-          </a>
-          <a href="#buyurtma" class="px-6 py-3 rounded-full bg-cream-200 hover:bg-cream-300 text-espresso-900 text-xs uppercase tracking-widest font-semibold transition">
-            Anketa & Hisob-kitob
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Carousel (Mashhur Taomlar) -->
-    <section id="sara" class="py-10 sm:py-16 bg-cream-50 hairline-t hairline-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 flex items-end justify-between">
-        <div>
-          <span class="text-[11px] tracking-widest uppercase font-bold text-brand-700 block mb-1">Eng Ko'p Buyurtma Qilinadigan</span>
-          <h2 class="font-serif text-2xl sm:text-4xl font-normal text-espresso-950">Sara Lazzatlarimiz</h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="carouselPrevBtn" class="w-9 h-9 rounded-full hairline-border bg-white text-espresso-900 flex items-center justify-center shadow-xs">
-            <i class="fa-solid fa-arrow-left text-xs"></i>
-          </button>
-          <button id="carouselNextBtn" class="w-9 h-9 rounded-full hairline-border bg-white text-espresso-900 flex items-center justify-center shadow-xs">
-            <i class="fa-solid fa-arrow-right text-xs"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="relative px-4 sm:px-6 lg:px-8">
-        <div id="dishesTrack" class="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2">
-          
-          <!-- Card 1 -->
-          <div class="snap-start shrink-0 w-[240px] sm:w-[280px] bg-white rounded-2xl overflow-hidden hairline-border shadow-xs flex flex-col">
-            <img src="images/goshtli-somsa.png" alt="Go'shtli Somsa" class="w-full h-44 object-cover" onerror="this.src='https://placehold.co/400x300?text=Sakina'">
-            <div class="p-4 flex flex-col flex-1 justify-between">
-              <div>
-                <h3 class="font-serif text-lg font-bold text-espresso-950">Go'shtli Somsa</h3>
-                <p class="text-xs text-stone-500 mt-1">Barra mol go'shti va mayin piyoz bilan.</p>
-              </div>
-              <div class="mt-4 flex items-center justify-between pt-3 hairline-t">
-                <span class="text-sm font-bold text-brand-700">6,000 UZS</span>
-                <button onclick="addToCart('s_goshtli')" class="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800 transition">
-                  <i class="fa-solid fa-plus text-[10px]"></i> Qo'shish
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2 -->
-          <div class="snap-start shrink-0 w-[240px] sm:w-[280px] bg-white rounded-2xl overflow-hidden hairline-border shadow-xs flex flex-col">
-            <img src="images/patir.png" alt="Issiq Patir" class="w-full h-44 object-cover" onerror="this.src='https://placehold.co/400x300?text=Sakina'">
-            <div class="p-4 flex flex-col flex-1 justify-between">
-              <div>
-                <h3 class="font-serif text-lg font-bold text-espresso-950">Yog'li Issiq Patir</h3>
-                <p class="text-xs text-stone-500 mt-1">Saryog' va sedana sepilgan barra patir non.</p>
-              </div>
-              <div class="mt-4 flex items-center justify-between pt-3 hairline-t">
-                <span class="text-sm font-bold text-brand-700">10,000 UZS</span>
-                <button onclick="addToCart('n_patir')" class="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800 transition">
-                  <i class="fa-solid fa-plus text-[10px]"></i> Qo'shish
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 3 -->
-          <div class="snap-start shrink-0 w-[240px] sm:w-[280px] bg-white rounded-2xl overflow-hidden hairline-border shadow-xs flex flex-col">
-            <img src="images/dolta-patir.png" alt="Do'lta Patir" class="w-full h-44 object-cover" onerror="this.src='https://placehold.co/400x300?text=Sakina'">
-            <div class="p-4 flex flex-col flex-1 justify-between">
-              <div>
-                <h3 class="font-serif text-lg font-bold text-espresso-950">Do'lta Patir</h3>
-                <p class="text-xs text-stone-500 mt-1">An'anaviy tandirda pishirilgan shirmoy do'lta patir.</p>
-              </div>
-              <div class="mt-4 flex items-center justify-between pt-3 hairline-t">
-                <span class="text-sm font-bold text-brand-700">15,000 UZS</span>
-                <button onclick="addToCart('n_dolta_patir')" class="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800 transition">
-                  <i class="fa-solid fa-plus text-[10px]"></i> Qo'shish
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 4 -->
-          <div class="snap-start shrink-0 w-[240px] sm:w-[280px] bg-white rounded-2xl overflow-hidden hairline-border shadow-xs flex flex-col">
-            <img src="images/oshqovoqsomsa.jpg" alt="Oshqovoq Somsa" class="w-full h-44 object-cover" onerror="this.src='https://placehold.co/400x300?text=Sakina'">
-            <div class="p-4 flex flex-col flex-1 justify-between">
-              <div>
-                <h3 class="font-serif text-lg font-bold text-espresso-950">Oshqovoqli Somsa</h3>
-                <p class="text-xs text-stone-500 mt-1">Shirin Andijon oshqovoqlari bilan mayin somsa.</p>
-              </div>
-              <div class="mt-4 flex items-center justify-between pt-3 hairline-t">
-                <span class="text-sm font-bold text-brand-700">4,000 UZS</span>
-                <button onclick="addToCart('s_oshqovoq')" class="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800 transition">
-                  <i class="fa-solid fa-plus text-[10px]"></i> Qo'shish
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
       </div>
     </section>
 
     <!-- Main Interactive Menu Section -->
-    <section id="menyu" class="py-12 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+    <section id="menyu" class="py-6 sm:py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
         <span class="text-[11px] tracking-widest uppercase font-bold text-brand-700 block mb-1">
-          To'liq Taomnoma
+          TO'LIQ TAOMNOMA
         </span>
         <h2 class="font-serif text-3xl sm:text-4xl font-normal text-espresso-950">
           Mahsulotlarni Tanlang
@@ -271,36 +198,28 @@
         </p>
       </div>
 
-      <!-- Menu Category Tabs -->
-      <div class="relative max-w-2xl mx-auto mb-8 px-8 sm:px-10">
-        <button type="button" onclick="scrollCat(-160)" class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white hairline-border text-espresso-900 flex items-center justify-center shadow-md hover:bg-cream-200 transition z-10 active:scale-95" title="Chapga surish">
-          <i class="fa-solid fa-chevron-left text-xs text-brand-700"></i>
-        </button>
-
-        <div id="catTabsContainer" class="flex items-center justify-start sm:justify-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1">
-          <button id="tab_somsa" onclick="switchCategory('somsa')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-brand-700 text-white shadow-sm whitespace-nowrap">
+      <!-- Telegram Inline Style Grid Buttons (Soft & Smooth, 2 columns) -->
+      <div class="max-w-xl mx-auto mb-8 px-2">
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+          <button id="tab_somsa" onclick="switchCategory('somsa')" class="tg-inline-btn active">
             <span>🥟 Somsalar</span>
           </button>
-          <button id="tab_non" onclick="switchCategory('non')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap">
+          <button id="tab_non" onclick="switchCategory('non')" class="tg-inline-btn">
             <span>🥖 Nonlar</span>
           </button>
-          <button id="tab_manti" onclick="switchCategory('manti')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap">
+          <button id="tab_manti" onclick="switchCategory('manti')" class="tg-inline-btn">
             <span>🥟 Mantilar</span>
           </button>
-          <button id="tab_grill" onclick="switchCategory('grill')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap">
+          <button id="tab_grill" onclick="switchCategory('grill')" class="tg-inline-btn">
             <span>🍗 Grill</span>
           </button>
-          <button id="tab_shirinlik" onclick="switchCategory('shirinlik')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap">
+          <button id="tab_shirinlik" onclick="switchCategory('shirinlik')" class="tg-inline-btn">
             <span>🍰 Shirinliklar</span>
           </button>
-          <button id="tab_fastfood" onclick="switchCategory('fastfood')" class="cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap">
+          <button id="tab_fastfood" onclick="switchCategory('fastfood')" class="tg-inline-btn">
             <span>🍔 Fast Food</span>
           </button>
         </div>
-
-        <button type="button" onclick="scrollCat(160)" class="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white hairline-border text-espresso-900 flex items-center justify-center shadow-md hover:bg-cream-200 transition z-10 active:scale-95" title="O'ngga surish">
-          <i class="fa-solid fa-chevron-right text-xs text-brand-700"></i>
-        </button>
       </div>
 
       <!-- Menu Grid -->
@@ -367,7 +286,7 @@
             <p class="text-stone-400 italic text-center py-2">Hozircha mahsulot tanlanmagan. Yuqoridagi menyudan taom tanlang.</p>
           </div>
 
-          <!-- To'lov Tafsilotlari (Chegirmasiz) -->
+          <!-- To'lov Tafsilotlari -->
           <div class="mt-4 pt-3 hairline-t space-y-2">
             <div class="flex items-center justify-between pt-2">
               <div>
@@ -439,7 +358,7 @@
       </div>
     </section>
 
-    <!-- Location & Contact -->
+    <!-- Location & Contact (Google Maps) -->
     <section id="manzil" class="py-12 sm:py-16 bg-cream-50 hairline-t">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -447,21 +366,22 @@
             <span class="text-[11px] tracking-widest uppercase font-bold text-brand-700 block">Lokatsiya</span>
             <h2 class="font-serif text-3xl font-normal text-espresso-950">Bizning Manzilimiz</h2>
             <div class="p-4 rounded-2xl bg-white hairline-border">
-              <p class="font-bold text-espresso-950">Andijon viloyati, Oltinko'l tumani</p>
-              <p class="text-xs text-stone-600 mt-1">Mo'ljal: Markaziy ko'cha bo'yida</p>
+              <p class="font-bold text-espresso-950">Sakina savdo do'koni</p>
+              <p class="text-xs text-stone-600 mt-1">Andijon viloyati, Oltinko'l tumani</p>
             </div>
             <div class="text-xs space-y-1 text-stone-700">
               <p><strong>Ish vaqti:</strong> Har kuni 08:00 dan 23:00 gacha</p>
               <p><strong>Telefon:</strong> <a href="tel:+998992204474" class="font-bold text-brand-700">+998 (99) 220-44-74</a></p>
             </div>
           </div>
-          <div class="lg:col-span-7 rounded-2xl overflow-hidden hairline-border aspect-video bg-stone-200">
+          <div class="lg:col-span-7 rounded-2xl overflow-hidden hairline-border aspect-video bg-stone-200 shadow-sm">
+            <!-- Aniq Google Xarita Nuqtasi -->
             <iframe 
-              title="Sakina Joylashuvi"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1510.1120735943284!2d72.15693224853726!3d40.80106796487856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x38bc97a00e2c6a89:0x12599de692cfc8c9!2sOltinko'l,+Andijan+region,+Uzbekistan!5e0!3m2!1sen!2s!4v1791013714311!5m2!1sen!2s" 
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d755.0628587584688!2d72.16279259097003!3d40.80046825778549!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x38bc97c8896bfb8d%3A0xec56777c48ddaa6b!2sSakina%20savdo%20dokoni!5e0!3m2!1sen!2s!4v1793045945931!5m2!1sen!2s" 
               class="w-full h-full border-0" 
               allowfullscreen="" 
-              loading="lazy">
+              loading="lazy" 
+              referrerpolicy="strict-origin-when-cross-origin">
             </iframe>
           </div>
         </div>
@@ -534,7 +454,7 @@
     if (tg) {
       tg.ready();
       tg.expand();
-            if (tg.isVerticalSwipesEnabled !== undefined) {
+      if (tg.isVerticalSwipesEnabled !== undefined) {
         tg.isVerticalSwipesEnabled = false;
       }
     }
@@ -598,13 +518,6 @@
       }
     }
 
-    function scrollCat(amount) {
-      const container = document.getElementById('catTabsContainer');
-      if (container) {
-        container.scrollBy({ left: amount, behavior: 'smooth' });
-      }
-    }
-
     // 3. Menyuni ekranga chiqarish
     function renderProducts() {
       const container = document.getElementById('productsGrid');
@@ -647,6 +560,7 @@
       }).join('');
     }
 
+    // Telegram inline uslubidagi kategoriyalarni tanlash
     function switchCategory(cat) {
       activeCategory = cat;
       const categories = ['somsa', 'non', 'manti', 'grill', 'shirinlik', 'fastfood'];
@@ -655,9 +569,9 @@
         const btn = document.getElementById('tab_' + c);
         if (btn) {
           if (c === cat) {
-            btn.className = "cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-brand-700 text-white shadow-sm whitespace-nowrap";
+            btn.className = "tg-inline-btn active";
           } else {
-            btn.className = "cat-tab-btn shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all bg-cream-200 text-stone-700 hover:bg-cream-300 whitespace-nowrap";
+            btn.className = "tg-inline-btn";
           }
         }
       });
@@ -822,12 +736,7 @@
     function closeCartModal() { cartModal.classList.add('hidden'); }
     window.addEventListener('click', (e) => { if (e.target === cartModal) closeCartModal(); });
 
-    // 6. Carousel boshqaruvi
-    const dishesTrack = document.getElementById('dishesTrack');
-    document.getElementById('carouselNextBtn')?.addEventListener('click', () => dishesTrack.scrollBy({ left: 260, behavior: 'smooth' }));
-    document.getElementById('carouselPrevBtn')?.addEventListener('click', () => dishesTrack.scrollBy({ left: -260, behavior: 'smooth' }));
-
-    // 7. YAKUNIY BUYURTMANI TELEGRAMGA UZATISH
+    // 6. YAKUNIY BUYURTMANI TELEGRAMGA UZATISH
     function submitFinalOrder() {
       const validKeys = Object.keys(cart).filter(id => cart[id] > 0 && menuDatabase[id]);
       if (validKeys.length === 0) {
@@ -897,16 +806,6 @@
 
       // 2. Google Sheets jadvalidan menyuni yangilash
       loadMenuFromSheets();
-
-      const catContainer = document.getElementById('catTabsContainer');
-      if (catContainer) {
-        catContainer.addEventListener('wheel', (evt) => {
-          if (evt.deltaY !== 0) {
-            evt.preventDefault();
-            catContainer.scrollLeft += evt.deltaY;
-          }
-        }, { passive: false });
-      }
     });
   </script>
 </body>
